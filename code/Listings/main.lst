@@ -1,0 +1,290 @@
+C51 COMPILER V9.54   MAIN                                                                  03/13/2026 13:12:36 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: F:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main.l
+                    -st) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <STC8H.H>
+   2          #include "OLED.h"
+   3          #include "delay.h"
+   4          #include "Key.h"
+   5          #include "Timer0.h"
+   6          #include "CD4051.h"
+   7          #include "DCV.h"
+   8          #include "RES.h"
+   9          #include "AD.h"
+  10          #include "FREQ.h"
+  11          #include "Buzzer.h"
+  12          
+  13          unsigned int AD, cc1, cc2, c = 0;
+  14          unsigned char Mode = MODE_DCV_2V;
+  15          unsigned char Range_DCV, Range_RES, Range_FREQ, Range_ACV;
+  16          float voltage, resistance, Freq, Duty, v, comp;
+  17          
+  18          
+  19          void main()
+  20          {
+  21   1              Range_DCV = MODE_DCV_2V;
+  22   1              Timer0_Init();
+  23   1              CD4051_Init();
+  24   1              AD_Init();
+  25   1              OLED_Init();
+  26   1              Key_Init();
+  27   1              RES_Init();
+  28   1              PWMA_Init();
+  29   1              Comparator_Init();
+  30   1              Buzzer_Init();
+  31   1              //初始化
+  32   1      
+  33   1              P1M0 |= 0x40; P1M1 &= ~0x40; 
+  34   1              Freq = 0.0f;
+  35   1              Duty = 0.0f;
+  36   1              
+  37   1              //开机动画
+  38   1              OLED_ShowCN(0, 0, 0);
+  39   1              OLED_ShowCN(0, 2, 1);
+  40   1              OLED_ShowCN(0, 4, 2);
+  41   1              OLED_ShowCN(0, 6, 3);
+  42   1              OLED_ShowCN(0, 8, 4);
+  43   1              OLED_ShowString(1, 0, "Designed by:");
+  44   1              OLED_ShowCN(2, 0, 5);
+  45   1              OLED_ShowCN(2, 2, 6);
+  46   1              OLED_ShowCN(2, 4, 7);
+  47   1              OLED_ShowString(3, 0, "25521029");
+  48   1              DelayMs(3000);
+  49   1              
+  50   1              while(1)
+  51   1              {
+  52   2      
+  53   2                      if(Key_Check(KEY_LONG))
+  54   2                      {
+C51 COMPILER V9.54   MAIN                                                                  03/13/2026 13:12:36 PAGE 2   
+
+  55   3                              Mode ++;
+  56   3                              if(Mode >= MODE_COUNT)    Mode = MODE_RES;
+  57   3                              CD4051_Set_Mode(Mode);
+  58   3                              Range_DCV = MODE_DCV_2V;
+  59   3                              Range_RES = RANGE_200R;
+  60   3                              Range_FREQ = RANGE_20HZ;
+  61   3                              Range_ACV = MODE_DCV_2V;
+  62   3                      }
+  63   2                      
+  64   2                      if(Mode == MODE_DCV_2V)
+  65   2                      {
+  66   3                              OLED_ShowString(0, 0, "AD Voltage ");
+  67   3                              OLED_ShowString(3, 0, "        ");
+  68   3                              if(Key_Check(KEY_SINGLE))     Range_DCV ++;
+  69   3                              if(Range_DCV > MODE_DCV_20V)  Range_DCV = MODE_DCV_2V;
+  70   3                              DCV_SetRange(Range_DCV);
+  71   3                              AD = AD_Average(3);
+  72   3                              voltage = DCV_ConvertToVoltage(AD, Range_DCV);
+  73   3                              DelayMs(100);
+  74   3                              if(Range_DCV == MODE_DCV_2V)        {OLED_ShowString(1, 0, "Range:2000mV");OLED_ShowFloat(2, 0, voltage
+             -, 4, 1);OLED_ShowString(2, 6, "mV");}
+  75   3                              else if(Range_DCV == MODE_DCV_20V)  {OLED_ShowString(1, 0, "Range:   20V");OLED_ShowFloat(2, 0, voltage
+             -, 3, 2);OLED_ShowString(2, 6, "V ");}
+  76   3                      }
+  77   2                      
+  78   2                      else if(Mode == MODE_RES)
+  79   2                      {
+  80   3                              OLED_ShowString(0, 0, "Resistance ");
+  81   3                              if(Key_Check(KEY_SINGLE))        Range_RES ++;
+  82   3                              if(Range_RES > RANGE_200K)       Range_RES = RANGE_200R;
+  83   3                              CD4052_Set_Range(Range_RES);
+  84   3                              AD = AD_Average(1);
+  85   3                              resistance = Measure_Resistance(Range_RES, AD);
+  86   3                              DelayMs(100);
+  87   3                              OLED_DrawOmega(1, 10);
+  88   3                              if(Range_RES == RANGE_200R)      {OLED_ShowString(1, 0, "Range: 200");OLED_ShowFloat(2, 0, resistance, 
+             -3, 2);OLED_ShowChar(2, 6, ' ');}
+  89   3                              else if(Range_RES == RANGE_2K)   {OLED_ShowString(1, 0, "Range:  2K");OLED_ShowFloat(2, 0, resistance /
+             - 1000.0, 3, 2);OLED_ShowChar(2, 6, 'K');}
+  90   3                              else if(Range_RES == RANGE_20K)  {OLED_ShowString(1, 0, "Range: 20K");OLED_ShowFloat(2, 0, resistance /
+             - 1000.0, 3, 2);OLED_ShowChar(2, 6, 'K');}
+  91   3                              else if(Range_RES == RANGE_200K) {OLED_ShowString(1, 0, "Range:200K");OLED_ShowFloat(2, 0, resistance /
+             - 1000.0, 3, 2);OLED_ShowChar(2, 6, 'K');}
+  92   3                              OLED_DrawOmega(2, 7);
+  93   3                              OLED_ShowChar(1, 11, ' ');
+  94   3                      }
+  95   2                      
+  96   2                      else if(Mode == MODE_FREQ)
+  97   2                      {
+  98   3                              PWMA_PS = 0x00;
+  99   3                              OLED_ShowString(0, 0, "Frequency  ");
+ 100   3                              if(Key_Check(KEY_SINGLE))        Range_FREQ ++;
+ 101   3                              if(Range_FREQ > RANGE_20KHZ)     Range_FREQ = RANGE_20HZ;
+ 102   3                  Freq = ((float)24000000 / 24.0) / (float)cc1;
+ 103   3                  Duty = ((float)100 * (float)cc2) / (float)cc1;
+ 104   3                              if(Range_FREQ == RANGE_20HZ)
+ 105   3                              {
+ 106   4                                      if(Freq > 100.0)     Range_FREQ  ++;
+ 107   4                                      OLED_ShowString(1, 0, "Range:20Hz  ");
+ 108   4                                      OLED_ShowFloat(2, 0, Freq, 3, 1);
+ 109   4                                      OLED_ShowString(2, 5, "Hz  ");
+ 110   4                                      OLED_ShowFloat(3, 0, Duty, 3, 2);
+C51 COMPILER V9.54   MAIN                                                                  03/13/2026 13:12:36 PAGE 3   
+
+ 111   4                                      OLED_DrawPercent(3, 6);
+ 112   4                              }
+ 113   3                              if(Range_FREQ == RANGE_200HZ)
+ 114   3                              {
+ 115   4                                      if(Freq > 1000.0)    Range_FREQ ++;
+ 116   4                                      if(Freq < 100.0)     Range_FREQ --;
+ 117   4                                      OLED_ShowString(1, 0, "Range:200Hz ");
+ 118   4                                      OLED_ShowFloat(2, 0, Freq, 3, 1);
+ 119   4                                      OLED_ShowString(2, 5, "Hz  ");
+ 120   4                                      OLED_ShowFloat(3, 0, Duty, 3, 2);
+ 121   4                                      OLED_DrawPercent(3, 6);
+ 122   4                              }
+ 123   3                              if(Range_FREQ == RANGE_2KHZ)
+ 124   3                              {
+ 125   4                                      if(Freq > 10000.0)   Range_FREQ ++;
+ 126   4                                      if(Freq < 1000.0)    Range_FREQ --;
+ 127   4                                      OLED_ShowString(1, 0, "Range:2KHz  ");
+ 128   4                                      OLED_ShowFloat(2, 0, Freq, 4, 1);
+ 129   4                                      OLED_ShowString(2, 6, "Hz ");
+ 130   4                                      OLED_ShowFloat(3, 0, Duty, 3, 2);
+ 131   4                                      OLED_DrawPercent(3, 6);
+ 132   4                              }
+ 133   3                              if(Range_FREQ == RANGE_20KHZ)
+ 134   3                              {
+ 135   4                                      if(Freq < 10000.0)   Range_FREQ --;
+ 136   4                                      OLED_ShowString(1, 0, "Range:20KHz ");
+ 137   4                                      OLED_ShowFloat(2, 0, Freq / 1000.0, 3, 1);
+ 138   4                                      OLED_ShowString(2, 5, "KHz   ");
+ 139   4                                      OLED_ShowFloat(3, 0, Duty, 3, 2);
+ 140   4                                      OLED_DrawPercent(3, 6);
+ 141   4                              }
+ 142   3                      }
+ 143   2                      
+ 144   2                      else if(Mode == MODE_CONT)
+ 145   2                      {
+ 146   3                              OLED_ShowString(0, 0, "Continuity ");
+ 147   3                              OLED_ShowString(1, 0, "               ");
+ 148   3                              OLED_ShowString(3, 0, "               ");
+ 149   3                              CD4052_Set_Range(Range_RES);
+ 150   3                              AD = AD_Average(1);
+ 151   3                              resistance = Measure_Resistance(Range_RES, AD);
+ 152   3                              if(resistance <= 50.0f)
+ 153   3                              {
+ 154   4                                      OLED_ShowString(2, 0, "Beep On  ");
+ 155   4                                      Buzzer_ON();
+ 156   4                              }
+ 157   3                              else if(resistance >50.0f)
+ 158   3                              {
+ 159   4                                      OLED_ShowString(2, 0, "Beep Off ");
+ 160   4                                      Buzzer_OFF();
+ 161   4                              }
+ 162   3                      }
+ 163   2                      
+ 164   2                      else if(Mode == MODE_DIODE)
+ 165   2                      {
+ 166   3                              AD = AD_Average(4);
+ 167   3                              OLED_ShowString(0, 0, "Diode Test ");
+ 168   3                              v = AD / 4095.0 * 5.0;
+ 169   3                              if(v < 0.1|| v > 4.3) 
+ 170   3                              {
+ 171   4                                      OLED_ShowString(1, 0, "RED:-");
+ 172   4                                      OLED_ShowString(2, 0, "         ");
+C51 COMPILER V9.54   MAIN                                                                  03/13/2026 13:12:36 PAGE 4   
+
+ 173   4                              }
+ 174   3                              else if(v >= 0.1 && v<= 4.3f)
+ 175   3                              {
+ 176   4                                      OLED_ShowString(1, 0, "RED:+");
+ 177   4                                      OLED_ShowFloat(2, 0, v, 1, 2);
+ 178   4                                      OLED_ShowString(2, 4, "V    ");
+ 179   4                              }
+ 180   3                              else
+ 181   3                              {
+ 182   4                                      OLED_ShowString(1, 0, "RED: ");
+ 183   4                                      OLED_ShowString(2, 0, "         ");
+ 184   4                              }
+ 185   3                      }
+ 186   2                      
+ 187   2                      else if(Mode == MODE_ACV)
+ 188   2                      {
+ 189   3                              PWMA_PS = 0x01;
+ 190   3                              OLED_ShowString(0, 0, "AC Voltage ");
+ 191   3                              if(Key_Check(KEY_SINGLE))     Range_ACV ++;
+ 192   3                              if(Range_ACV > MODE_DCV_20V)  Range_ACV = MODE_DCV_2V;
+ 193   3                              DCV_SetRange(Range_ACV);
+ 194   3                              AD = AD_Average(3);
+ 195   3                              comp = Get_AC_RMS(AD, 128, Range_ACV);
+ 196   3                              if(comp > voltage)
+ 197   3                              voltage = comp;
+ 198   3                              if(AD > 2100 && AD < 2300)
+ 199   3                              {comp = 0; voltage = 0;}
+ 200   3                              Freq = ((float)24000000 / 24.0) / (float)cc1;
+ 201   3                              if(Range_ACV == MODE_DCV_2V)        
+ 202   3                              {
+ 203   4                                      OLED_ShowString(1, 0, "Range:2000mV");
+ 204   4                                      OLED_ShowFloat(2, 0, voltage, 4, 1);
+ 205   4                                      OLED_ShowString(2, 6, "mV");
+ 206   4                                      OLED_ShowFloat(3, 0, Freq, 3, 1);
+ 207   4                                      OLED_ShowString(3, 5, "Hz  ");
+ 208   4                              }
+ 209   3                              else if(Range_ACV == MODE_DCV_20V)  
+ 210   3                              {
+ 211   4                                      OLED_ShowString(1, 0, "Range:   20V");
+ 212   4                                      OLED_ShowFloat(2, 0, voltage, 3, 2);
+ 213   4                                      OLED_ShowString(2, 6, "V ");
+ 214   4                                      OLED_ShowFloat(3, 0, Freq, 3, 1);
+ 215   4                                      OLED_ShowString(3, 5, "Hz  ");
+ 216   4                              }
+ 217   3                      }
+ 218   2                      
+ 219   2                      else if(Mode == MODE_CAP)
+ 220   2                      {
+ 221   3                              OLED_ShowString(0, 0, "Capacitance");
+ 222   3                              OLED_ShowString(1, 0, "            ");
+ 223   3                              OLED_ShowString(2, 0, "         ");
+ 224   3                              OLED_ShowString(3, 0, "            ");
+ 225   3                      }
+ 226   2                      
+ 227   2              }
+ 228   1      }
+ 229          
+ 230          void TM0_Routine(void)  interrupt 1    //定时器中断函数(1ms)
+ 231          {
+ 232   1              TL0 = 0x30;                             
+ 233   1              TH0 = 0xF8;
+ 234   1              c ++;
+C51 COMPILER V9.54   MAIN                                                                  03/13/2026 13:12:36 PAGE 5   
+
+ 235   1              Key_Tick();
+ 236   1              if(c > 0 && c <= 2)   P16 = 1;
+ 237   1              if(c > 2 && c <= 3)   {c = 0;P16 = 0;}
+ 238   1      }
+ 239          
+ 240          void PWMA_ISR()  interrupt 26
+ 241          {
+ 242   1              if(PWMA_SR1 & 0x02)
+ 243   1              {
+ 244   2                      PWMA_SR1 &= ~0x02;
+ 245   2                      cc1 = PWMA_CCR1;
+ 246   2              }
+ 247   1              if(PWMA_SR1 & 0x04)
+ 248   1              {
+ 249   2                      PWMA_SR1 &= ~0x04;
+ 250   2                      cc2 = PWMA_CCR2;
+ 251   2              }
+ 252   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2414    ----
+   CONSTANT SIZE    =    342    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     37    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

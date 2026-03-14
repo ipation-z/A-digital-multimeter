@@ -1,0 +1,62 @@
+C51 COMPILER V9.54   AD                                                                    03/13/2026 13:12:37 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE AD
+OBJECT MODULE PLACED IN .\Objects\AD.obj
+COMPILER INVOKED BY: F:\Keil5\C51\BIN\C51.EXE AD.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\AD.lst) 
+                    -OBJECT(.\Objects\AD.obj)
+
+line level    source
+
+   1          #include <STC8H.H>
+   2          #include <INTRINS.H>
+   3          #include "delay.h"
+   4          
+   5          void AD_Init()
+   6          {                  
+   7   1              P1M0 = (P1M0 & ~0x1a) | 0x20; 
+   8   1              P1M1 = (P1M1 & ~0x20) | 0x1a; 
+   9   1          P15 = 1;                        //P1.1,P1.3,P1.4高阻输入,P1.5推挽输出
+  10   1              ADCTIM = 0x3F;                  //设置ADC内部时序
+  11   1          ADCCFG = 0x2F;                  //设置ADC时钟为系统时钟，数据右对齐
+  12   1          ADC_CONTR = 0x80;               //使能ADC模块
+  13   1      }
+  14          
+  15          unsigned int AD_GetValue(unsigned char channel)
+  16          {
+  17   1              ADC_RES = 0;
+  18   1              ADC_RESL = 0;
+  19   1              
+  20   1              // 启动ADC转换
+  21   1          ADC_CONTR = (ADC_CONTR & 0xF0) | 0x40 | channel;    //启动 AD 转换
+  22   1          _nop_(); _nop_(); _nop_();  // 短暂延时
+  23   1              
+  24   1              // 等待转换完成
+  25   1              while(!(ADC_CONTR & 0x20));
+  26   1              ADC_CONTR &= ~0x20;     //清除ADC结束标志
+  27   1              return (((unsigned int)ADC_RES << 8) | ADC_RESL);
+  28   1      }
+  29          
+  30          unsigned int AD_Average(unsigned char channel)
+  31          {
+  32   1              unsigned int sum;
+  33   1              int i;
+  34   1              AD_GetValue(channel);
+  35   1              for(i = 0; i < 16; i ++)
+  36   1              sum += AD_GetValue(channel);
+  37   1              return sum / 16;
+  38   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    116    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

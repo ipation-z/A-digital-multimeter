@@ -1,0 +1,106 @@
+C51 COMPILER V9.54   KEY                                                                   03/13/2026 13:12:37 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE KEY
+OBJECT MODULE PLACED IN .\Objects\Key.obj
+COMPILER INVOKED BY: F:\Keil5\C51\BIN\C51.EXE Key.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\Key.lst
+                    -) OBJECT(.\Objects\Key.obj)
+
+line level    source
+
+   1          #include <STC8H.H>
+   2          #include "Key.h"
+   3          
+   4          #define KEY_PRESSED       1
+   5          #define KEY_UNPRESSED     0
+   6          
+   7          #define KEY_TIME_LONG     1000
+   8          
+   9          sbit KEY = P3^2;
+  10          
+  11          idata unsigned char Key_Flag;
+  12          
+  13          void Key_Init()
+  14          {
+  15   1              P3M0 &= ~0x04;
+  16   1              P3M1 &= ~0x04;  //准双向口
+  17   1      }
+  18          
+  19          unsigned char Key_GetState()
+  20          {
+  21   1              if(KEY == 0)
+  22   1              return KEY_PRESSED;
+  23   1              return KEY_UNPRESSED;
+  24   1      }
+  25          
+  26          unsigned char Key_Check(unsigned char Flag)
+  27          {
+  28   1              if(Key_Flag & Flag)
+  29   1              {
+  30   2                      Key_Flag &= ~Flag;
+  31   2                      return 1;
+  32   2              }
+  33   1              return 0;
+  34   1      }
+  35          
+  36          void Key_Tick()
+  37          {
+  38   1              static unsigned char Count;
+  39   1              static unsigned char CurrState, PrevState;
+  40   1              static unsigned char s = 0;
+  41   1              static unsigned int Time = 0;
+  42   1              
+  43   1              if(Time > 0)
+  44   1              Time --;
+  45   1              
+  46   1              Count ++;
+  47   1              if(Count >= 20)
+  48   1              {
+  49   2                      Count = 0;
+  50   2                      PrevState = CurrState;
+  51   2                      CurrState = Key_GetState();
+  52   2                      
+  53   2                      if(s == 0)
+  54   2                      {
+C51 COMPILER V9.54   KEY                                                                   03/13/2026 13:12:37 PAGE 2   
+
+  55   3                              if(CurrState == KEY_PRESSED)
+  56   3                              {
+  57   4                                      Time = KEY_TIME_LONG;         //设定判定长按按下时间
+  58   4                                      s = 1;
+  59   4                              }
+  60   3                      }
+  61   2                      else if(s == 1)
+  62   2                      {
+  63   3                              if(CurrState == KEY_UNPRESSED)
+  64   3                              {
+  65   4                                      Key_Flag |= KEY_SINGLE;
+  66   4                                      s = 0;                        //短按
+  67   4                              }
+  68   3                              else if(Time == 0)
+  69   3                              {
+  70   4                                      Key_Flag |= KEY_LONG;         //LONG = 1
+  71   4                                      s = 2;                        //长按
+  72   4                              }
+  73   3                      }
+  74   2                      else if(s == 2)
+  75   2                      {
+  76   3                              if(CurrState == KEY_UNPRESSED)
+  77   3                              s = 0;
+  78   3                      }
+  79   2              }
+  80   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    140    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      6    ----
+   IDATA SIZE       =      1    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

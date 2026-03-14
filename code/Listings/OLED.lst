@@ -1,0 +1,363 @@
+C51 COMPILER V9.54   OLED                                                                  03/13/2026 13:12:37 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE OLED
+OBJECT MODULE PLACED IN .\Objects\OLED.obj
+COMPILER INVOKED BY: F:\Keil5\C51\BIN\C51.EXE OLED.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\OLED.l
+                    -st) OBJECT(.\Objects\OLED.obj)
+
+line level    source
+
+   1          #include <STC8H.H>
+   2          #include <INTRINS.H>
+   3          #include <math.h>
+   4          #include "OLED_Font.h"
+   5          #include "i2c.h"
+   6          #include "delay.h"
+   7          
+   8          void OLED_WriteCommand(unsigned char Command)
+   9          {
+  10   1              Start();
+  11   1              SendData(0x78);     //寻址
+  12   1              RecvACK();
+  13   1              SendData(0x00);     //Control Byte
+  14   1              RecvACK();
+  15   1              SendData(Command);  //Data Byte
+  16   1              RecvACK();
+  17   1              Stop();
+  18   1      }
+  19          
+  20          void OLED_WriteData(unsigned char Data)
+  21          {
+  22   1              Start();
+  23   1              SendData(0x78);  //寻址
+  24   1              RecvACK();
+  25   1              SendData(0x40);  //Control Byte
+  26   1              RecvACK();
+  27   1              SendData(Data);  //Data Byte
+  28   1              RecvACK();
+  29   1              Stop();
+  30   1      }
+  31          
+  32          void OLED_SetCursor(unsigned char X, unsigned char Page)
+  33          {
+  34   1              OLED_WriteCommand(0x00 | (X & 0x0F) );
+  35   1              OLED_WriteCommand(0x10 | ((X & 0xF0) >> 4));
+  36   1              OLED_WriteCommand(0xB0 | Page);
+  37   1      }
+  38          
+  39          void OLED_Clear()
+  40          {
+  41   1              int i, j;
+  42   1              for(j = 0; j < 8; j ++)
+  43   1              {
+  44   2                      OLED_SetCursor(0, j);
+  45   2                      for(i = 0; i < 128; i ++)
+  46   2                      {
+  47   3                              OLED_WriteData(0x00);
+  48   3                      }
+  49   2              }
+  50   1      }
+  51          
+  52          void OLED_Init()
+  53          {
+  54   1              I2C_Init();
+C51 COMPILER V9.54   OLED                                                                  03/13/2026 13:12:37 PAGE 2   
+
+  55   1              DelayMs(100);
+  56   1              
+  57   1              OLED_WriteCommand(0xAE);
+  58   1              OLED_WriteCommand(0xA1); 
+  59   1              OLED_WriteCommand(0x00);   
+  60   1              OLED_WriteCommand(0x20);
+  61   1              OLED_WriteCommand(0x02);
+  62   1              OLED_WriteCommand(0x40);  
+  63   1              OLED_WriteCommand(0x81);
+  64   1              OLED_WriteCommand(0x7F);        
+  65   1              OLED_WriteCommand(0xA6);   
+  66   1              OLED_WriteCommand(0xA8);   
+  67   1              OLED_WriteCommand(0x3F);   
+  68   1              OLED_WriteCommand(0xAD);
+  69   1              OLED_WriteCommand(0x00);        
+  70   1              OLED_WriteCommand(0xC8);
+  71   1              OLED_WriteCommand(0xD3);        
+  72   1              OLED_WriteCommand(0x00);   
+  73   1              OLED_WriteCommand(0xD5);  
+  74   1              OLED_WriteCommand(0x80);
+  75   1              OLED_WriteCommand(0xD9);   
+  76   1              OLED_WriteCommand(0xF1);   
+  77   1              OLED_WriteCommand(0xDB);   
+  78   1              OLED_WriteCommand(0x40);
+  79   1              OLED_WriteCommand(0x8D);        
+  80   1              OLED_WriteCommand(0x14);   
+  81   1              OLED_WriteCommand(0xAF);   
+  82   1          
+  83   1          DelayMs(100);
+  84   1          
+  85   1          OLED_Clear();
+  86   1      }
+  87          
+  88          
+  89          void OLED_ShowChar(unsigned char Line, unsigned char Column, char Char)
+  90          {
+  91   1              int i;
+  92   1              unsigned char Page = Line * 2;      // 每行对应2页
+  93   1          unsigned char X = Column * 8;       // 每列对应8像素
+  94   1              OLED_SetCursor(X, Page);
+  95   1              for(i = 0; i < 8; i ++)
+  96   1              {
+  97   2                      OLED_WriteData(OLED_F8x16[Char - ' '][i]);
+  98   2              }
+  99   1              OLED_SetCursor(X, Page + 1);
+ 100   1              for(i = 0; i < 8; i ++)
+ 101   1              {
+ 102   2                      OLED_WriteData(OLED_F8x16[Char - ' '][i + 8]);
+ 103   2              }
+ 104   1      }
+ 105          
+ 106          void OLED_ShowString(unsigned char Line, unsigned char Column, char *String)
+ 107          {
+ 108   1              int i;
+ 109   1              for(i = 0; String[i] != '\0'; i ++)
+ 110   1              {
+ 111   2                      OLED_ShowChar(Line, Column + i, String[i]);
+ 112   2              }
+ 113   1      }
+ 114          
+ 115          void OLED_ShowNum(unsigned char Line, unsigned char Column, int Num, unsigned char Length)
+ 116          {
+C51 COMPILER V9.54   OLED                                                                  03/13/2026 13:12:37 PAGE 3   
+
+ 117   1          int i;
+ 118   1          xdata unsigned char num_str[12];
+ 119   1          xdata unsigned char temp_str[12];
+ 120   1          int temp_num = Num;
+ 121   1              unsigned char actual_length;
+ 122   1          int index = 0;
+ 123   1          
+ 124   1          // 处理负数
+ 125   1          if (Num < 0)
+ 126   1          {
+ 127   2              OLED_ShowChar(Line, Column, '-');
+ 128   2              Column++;  // 移动到下一列
+ 129   2              temp_num = -Num;
+ 130   2              Length--;  // 符号占一位
+ 131   2          }
+ 132   1          
+ 133   1          // 将数字转换为字符串（逆序）
+ 134   1          if (temp_num == 0)
+ 135   1          {
+ 136   2              temp_str[index++] = '0';
+ 137   2          }
+ 138   1          else
+ 139   1          {
+ 140   2              while (temp_num > 0 && index < 10)
+ 141   2              {
+ 142   3                  temp_str[index++] = (temp_num % 10) + '0';
+ 143   3                  temp_num /= 10;
+ 144   3              }
+ 145   2          }
+ 146   1          
+ 147   1          // 计算实际数字位数
+ 148   1          actual_length = index;
+ 149   1          
+ 150   1          // 补零并正序存储
+ 151   1          for (i = 0; i < Length; i++)
+ 152   1          {
+ 153   2              if (i < Length - actual_length)
+ 154   2              {
+ 155   3                  num_str[i] = '0';  // 前面补零
+ 156   3              }
+ 157   2              else
+ 158   2              {
+ 159   3                  num_str[i] = temp_str[Length - i - 1];
+ 160   3              }
+ 161   2          }
+ 162   1          num_str[Length] = '\0';
+ 163   1          
+ 164   1          // 显示数字
+ 165   1          for (i = 0; i < Length; i++)
+ 166   1          {
+ 167   2              OLED_ShowChar(Line, Column + i, num_str[i]);
+ 168   2          }
+ 169   1      }
+ 170          
+ 171          void OLED_ShowFloat(unsigned char Line, unsigned char Column, float FloatNum, 
+ 172                              unsigned char IntLength, unsigned char DecLength)
+ 173          {
+ 174   1          int i;
+ 175   1          xdata unsigned char dec_part_str[12];
+ 176   1              xdata unsigned char temp_str[12];
+ 177   1          int int_part, dec_part;
+ 178   1          idata float temp_float;
+C51 COMPILER V9.54   OLED                                                                  03/13/2026 13:12:37 PAGE 4   
+
+ 179   1          unsigned char current_column = Column;
+ 180   1          
+ 181   1          // 处理负数
+ 182   1          if (FloatNum < 0)
+ 183   1          {
+ 184   2              OLED_ShowChar(Line, current_column, '-');
+ 185   2              current_column++;
+ 186   2              FloatNum = -FloatNum;
+ 187   2          }
+ 188   1          
+ 189   1          // 分离整数部分和小数部分
+ 190   1          int_part = (int)FloatNum;
+ 191   1          temp_float = FloatNum - int_part;
+ 192   1          
+ 193   1          // 计算小数部分
+ 194   1          for (i = 0; i < DecLength; i++)
+ 195   1          {
+ 196   2              temp_float *= 10;
+ 197   2          }
+ 198   1          dec_part = (int)(temp_float + 0.5);  // 四舍五入
+ 199   1          
+ 200   1          // 处理小数进位到整数部分
+ 201   1          if (dec_part >= (int)pow(10, DecLength))
+ 202   1          {
+ 203   2              int_part++;
+ 204   2              dec_part -= (int)pow(10, DecLength);
+ 205   2          }
+ 206   1          
+ 207   1          // 显示整数部分（前面补零）
+ 208   1          OLED_ShowNum(Line, current_column, int_part, IntLength);
+ 209   1          current_column += IntLength;
+ 210   1          
+ 211   1          // 显示小数点
+ 212   1          OLED_ShowChar(Line, current_column, '.');
+ 213   1          current_column++;
+ 214   1          
+ 215   1          // 显示小数部分（后面补零）
+ 216   1          if (DecLength > 0)
+ 217   1          {
+ 218   2              // 将小数部分转换为字符串
+ 219   2              int temp_dec = dec_part;
+ 220   2              int dec_digits = 0;
+ 221   2              
+ 222   2              // 转换为字符串（逆序）
+ 223   2              int idx = 0;
+ 224   2              
+ 225   2              if (temp_dec == 0)
+ 226   2              {
+ 227   3                  temp_str[idx++] = '0';
+ 228   3              }
+ 229   2              else
+ 230   2              {
+ 231   3                  while (temp_dec > 0 && idx < DecLength)
+ 232   3                  {
+ 233   4                      temp_str[idx++] = (temp_dec % 10) + '0';
+ 234   4                      temp_dec /= 10;
+ 235   4                  }
+ 236   3              }
+ 237   2              dec_digits = idx;
+ 238   2              
+ 239   2              // 正序存储并补零
+ 240   2              for (i = 0; i < DecLength; i++)
+C51 COMPILER V9.54   OLED                                                                  03/13/2026 13:12:37 PAGE 5   
+
+ 241   2              {
+ 242   3                  if (i < DecLength - dec_digits)
+ 243   3                  {
+ 244   4                      dec_part_str[i] = '0';  // 前面补零
+ 245   4                  }
+ 246   3                  else
+ 247   3                  {
+ 248   4                      dec_part_str[i] = temp_str[DecLength - i - 1];
+ 249   4                  }
+ 250   3              }
+ 251   2              dec_part_str[DecLength] = '\0';
+ 252   2              
+ 253   2              // 显示小数部分
+ 254   2              for (i = 0; i < DecLength; i++)
+ 255   2              {
+ 256   3                  OLED_ShowChar(Line, current_column + i, dec_part_str[i]);
+ 257   3              }
+ 258   2          }
+ 259   1      }
+ 260          
+ 261          void OLED_DrawOmega(unsigned char Line, unsigned char Column)
+ 262          {
+ 263   1              unsigned char Page = Line * 2;      // 每行对应2页
+ 264   1          unsigned char X = Column * 8;       // 每列对应8像素
+ 265   1              OLED_SetCursor(X, Page);
+ 266   1              OLED_WriteData(0x00);
+ 267   1              OLED_WriteData(0xC0);
+ 268   1              OLED_WriteData(0xC0);
+ 269   1              OLED_WriteData(0x30);
+ 270   1              OLED_WriteData(0x30);
+ 271   1              OLED_WriteData(0xC0);
+ 272   1              OLED_WriteData(0xC0);
+ 273   1              OLED_WriteData(0x00);
+ 274   1              OLED_SetCursor(X, Page + 1);
+ 275   1              OLED_WriteData(0x43);
+ 276   1              OLED_WriteData(0x4C);
+ 277   1              OLED_WriteData(0x70);
+ 278   1              OLED_WriteData(0x00);
+ 279   1              OLED_WriteData(0x00);
+ 280   1              OLED_WriteData(0x70);
+ 281   1              OLED_WriteData(0x4C);
+ 282   1              OLED_WriteData(0x43);
+ 283   1              OLED_WriteData(0x00);
+ 284   1      }
+ 285          
+ 286          void OLED_DrawPercent(unsigned char Line, unsigned char Column)
+ 287          {
+ 288   1          unsigned char Page = Line * 2;      // 每行对应2页
+ 289   1          unsigned char X = Column * 8;       // 每列对应8像素
+ 290   1      
+ 291   1          // 上半部分（行0~7）点阵数据
+ 292   1          OLED_SetCursor(X, Page);
+ 293   1          OLED_WriteData(0x38);   
+ 294   1          OLED_WriteData(0x28);  
+ 295   1          OLED_WriteData(0x38);   
+ 296   1          OLED_WriteData(0x00);   
+ 297   1          OLED_WriteData(0xC0);   
+ 298   1          OLED_WriteData(0x30);   
+ 299   1          OLED_WriteData(0x0C);   
+ 300   1          OLED_WriteData(0x00);   
+ 301   1      
+ 302   1          // 下半部分（行8~15）点阵数据
+C51 COMPILER V9.54   OLED                                                                  03/13/2026 13:12:37 PAGE 6   
+
+ 303   1          OLED_SetCursor(X, Page + 1);
+ 304   1          OLED_WriteData(0x00);  
+ 305   1          OLED_WriteData(0x30);  
+ 306   1          OLED_WriteData(0x0C);  
+ 307   1          OLED_WriteData(0x03);  
+ 308   1          OLED_WriteData(0x00);  
+ 309   1          OLED_WriteData(0x1C);  
+ 310   1          OLED_WriteData(0x14);   
+ 311   1          OLED_WriteData(0x1C);  
+ 312   1      }
+ 313          
+ 314          void OLED_ShowCN(unsigned char Line, unsigned char Column, char Char)
+ 315          {
+ 316   1              int i;
+ 317   1              unsigned char Page = Line * 2;      // 每行对应2页
+ 318   1          unsigned char X = Column * 8;       // 每列对应8像素
+ 319   1              OLED_SetCursor(X, Page);
+ 320   1              for(i = 0; i < 16; i ++)
+ 321   1              {
+ 322   2                      OLED_WriteData(OLED_CN16x16[Char][i]);
+ 323   2              }
+ 324   1              OLED_SetCursor(X, Page + 1);
+ 325   1              for(i = 0; i < 16; i ++)
+ 326   1              {
+ 327   2                      OLED_WriteData(OLED_CN16x16[Char][i + 16]);
+ 328   2              }
+ 329   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1814    ----
+   CONSTANT SIZE    =   1776    ----
+   XDATA SIZE       =   ----      48
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      59
+   IDATA SIZE       =   ----       4
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

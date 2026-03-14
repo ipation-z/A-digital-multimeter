@@ -1,0 +1,14 @@
+".\Objects\main.obj",
+".\Objects\delay.obj",
+".\Objects\OLED.obj",
+".\Objects\Timer0.obj",
+".\Objects\Key.obj",
+".\Objects\CD4051.obj",
+".\Objects\DCV.obj",
+".\Objects\RES.obj",
+".\Objects\I2C.obj",
+".\Objects\AD.obj",
+".\Objects\FREQ.obj",
+".\Objects\Buzzer.obj" 
+TO ".\Objects\project" 
+PRINT(".\Listings\project.m51") RAMSIZE(256) 
